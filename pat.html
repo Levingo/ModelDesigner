@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Ofer Example</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+        <style>
+            body {
+                color: #cccccc;
+                font-family:Monospace;
+                font-size:13px;
+                text-align:center;
+                background-color: #bbbbbb;
+                margin: 0px;
+                overflow: hidden;
+            }
+        </style>
+
+    </head>
+    <body>
+
+        <div id="container"></div>
+             <div id="info" style="position: absolute; z-index: 100; top: 10px; width: 80%;">
+
+               <font color=0>Drag the curve nodes. Click on the curve to create more nodes. middle (wheel) click on the curve nodes to delete them </font>
+               <a href="javascript:save();"> download STL </a>
+            </div>
+
+
+        <script src="js/three.min.js"></script>
+        <script src="js/dat.gui.min.js"></script>
+
+        <script src="js/Detector.js"></script>
+
+        <script src="js/STLExporter.js"></script>
+        <script src="js/FileSaver.min.js"></script>
+
+        <script src="pat.js"></script>
+        <script>
+            if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
+            var container;
+            var camera, scene, renderer,raycaster, mouse
+
+
+            var xzplane=new THREE.Plane(new THREE.Vector3(0,1,0) ,0);
+            var curObject, drag=false
+
+            var group = new THREE.Group();
+            group.rotation.x=0.3
+            group.rotation.z=-0.3
+            var gui = new dat.GUI();
+
+            var model=new surface(group)
+            patx=gui.add(model, 'patX', 1, 10).step(1);
+            patx.onChange(function(value) {
+                model.transform(true)
+            });
+
+            paty=gui.add(model, 'patY', 1, 10).step(1);
+            paty.onChange(function(value) {
+                model.transform(true)
+            });
+
+            patys=gui.add(model, 'patYs', 0, 6).step(1);
+            patys.onChange(function(value) {
+                model.transform(true)
+            });
+
+            patys=gui.add(model, 'thickness', 1, 30).step(1);
+            patys.onChange(function(value) {
+                model.transform(true)
+            });
+
+
+
+
+
+            model.init()
+
+            init();
+
+            function init() {
+                container = document.getElementById( 'container' );
+                camera = new THREE.PerspectiveCamera( 27, window.innerWidth / window.innerHeight, 1, 3500 );
+                camera.position.set(0,-400,0)
+                camera.lookAt(new THREE.Vector3( 0, 0, 60 ))
+                camera.rotateOnAxis(new THREE.Vector3(0, 0, 1), Math.PI);
+
+
+                scene = new THREE.Scene();
+                scene.fog = new THREE.Fog( 0xEEEEEE,8000, 10000 );
+
+
+                scene.add( new THREE.AmbientLight( 0xBBBBBB) );
+                var light1 = new THREE.DirectionalLight( 0x333300);
+                light1.position.set( -100, -100,50 );
+                scene.add( light1 );
+                var light2 = new THREE.DirectionalLight( 0xFFBB88 );
+                light2.position.set( -1, -1, 0.3 );
+                scene.add( light2 );
+
+                scene.add( group );
+
+                var helper = new THREE.GridHelper( 100, 20 );
+                helper.rotation.x = Math.PI / 2;
+                helper.setColors(0x222222,0x999999)
+                group.add( helper );
+
+                raycaster = new THREE.Raycaster();
+
+                mouse = new THREE.Vector2();
+
+                renderer = new THREE.WebGLRenderer( { antialias: false } );
+                renderer.setClearColor( scene.fog.color );
+                renderer.setPixelRatio( window.devicePixelRatio );
+                renderer.setSize( window.innerWidth, window.innerHeight );
+                container.appendChild( renderer.domElement );
+
+                window.addEventListener( 'resize', onWindowResize, false );
+                document.addEventListener( 'mousemove', onDocumentMouseMove, false );
+                document.addEventListener( 'mousedown', onDocumentMouseDown, false );
+                document.addEventListener( 'mouseup', onDocumentMouseUp, false );
+                document.addEventListener( 'mousewheel', onWheel, false );
+
+                render();
+            }
+
+            function save() {
+                var ax=group.rotation.x
+                var az=group.rotation.z
+                group.rotation.x=0
+                group.rotation.z=0
+                render()
+                saveSTL(model.mesh,"model")
+                group.rotation.x=ax
+                group.rotation.z=az
+                render()
+            }
+
+            function onWindowResize() {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize( window.innerWidth, window.innerHeight );
+                render()
+	 }
+
+            function onDocumentMouseMove( event ) {
+                event.preventDefault();
+                mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+                mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+                if ((event.buttons==1)&& (drag==false)) {
+                    group.rotation.z+=2*(mouse.x-mouse.lastx)
+                    group.rotation.x-=2*(mouse.y-mouse.lasty)
+                    if (group.rotation.x>1.6) {group.rotation.x=1.6;}
+                    if (group.rotation.x<-1.6) {group.rotation.x=-1.6;}
+                    render();				
+                }
+                if ((event.buttons==4)&& (drag==false)) {
+                    group.position.x+=100*(mouse.x-mouse.lastx)
+                    group.position.z+=100*(mouse.y-mouse.lasty)
+
+                    render();				
+                }
+                mouse.lastx=mouse.x
+                mouse.lasty=mouse.y
+                if (!drag) { //  might hover or off
+                    raycaster.setFromCamera( mouse, camera );
+                    var intersects = raycaster.intersectObjects( model.dragObjects );
+                    if ( intersects.length > 0 ) {
+                        if (!((curObject) && (curObject == intersects[0].object))) {
+                            curObject = intersects[0].object
+                            curObject.hover()
+                            render()
+
+                        }
+
+                    } else {
+                        if (curObject) {
+                            curObject.normal()
+                            curObject=null
+                            render()
+                        }
+                    }
+                }
+
+                else  {  //drag
+                    raycaster.setFromCamera( mouse, camera );
+                    raycaster.ray.intersectPlane(xzplane,curObject.position)
+                    curObject.position=group.worldToLocal(curObject.position)
+
+                    model.somethingMoved()
+                    render()
+
+                    if (event.buttons==0) {
+                        curObject.normal()
+                        curObject=null
+                        drag=false
+                        container.style.cursor = 'auto'
+                        render()
+                    }
+                }
+            }
+
+            function onDocumentMouseUp( event ) {
+                drag=false
+                container.style.cursor = 'auto'
+                model.transform(true)
+                render()
+            }
+
+            function onDocumentMouseDown( event ) {
+                event.preventDefault();
+                mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+                mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+
+                if (event.button==0) {
+
+                    raycaster.setFromCamera( mouse, camera );
+                    var intersects = raycaster.intersectObjects( model.dragObjects );
+                    if ( intersects.length > 0 ) {
+                        drag=true
+                        curObject=intersects[0].object
+                        container.style.cursor = 'move'
+                        xzplane.setFromNormalAndCoplanarPoint(group.localToWorld(curObject.planeVector.clone()).sub(group.position),group.localToWorld(curObject.planePoint.clone()))
+                        render()
+
+                    } else { // clickObjects
+                        drag=false
+                        curObject=null
+                        var intersects = raycaster.intersectObjects( model.clickObjects );
+                        if ( intersects.length > 0 ) {
+                            var a=intersects[0].object.clicked(group.worldToLocal(intersects[0].point))
+                            if (a) {
+                                model.somethingMoved()
+                                render()
+                                onDocumentMouseDown( event )   // to get in drag mode
+                            }
+
+                        }
+                    }
+                }
+                else if (event.button==1) {
+                    raycaster.setFromCamera( mouse, camera );
+                    var intersects = raycaster.intersectObjects( model.dragObjects );
+                    if ( intersects.length > 0 ) {
+                        curObject=intersects[0].object
+                        curObject.rightclick()
+                        model.somethingMoved()
+                        render();
+                    }
+                }
+
+            }
+
+            function onWheel( event ) {
+                camera.position.y-=2*event.deltaY
+                if (camera.position.y>-100) {camera.position.y=-100}
+                if (camera.position.y<-3000) {camera.position.y=-3000}
+                render();
+            }
+
+            function animate() {
+                requestAnimationFrame( animate );
+                render();
+            }
+
+            function render() {
+
+                renderer.render( scene, camera );
+
+                //model.colors[1].g=0.9
+            }
+
+
+
+        </script>
+    </body>
+</html>
+
