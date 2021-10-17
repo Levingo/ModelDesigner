@@ -57,6 +57,8 @@ function splineTool(group,dragObjects,clickObjects) {
 
             ball.hover = function() {
                 this.material=this.that.ballMaterialHover
+                console.log(this.that.ballPositions)
+
             }
             ball.normal = function() {
                 this.material=this.that.ballMaterialNormal
@@ -114,13 +116,13 @@ function VASE(group) {
     this.division=1;
     this.layers=72;
     this.showgrid=true
-
+    this.that=this
     this.geometry = new THREE.Geometry();
-    this.material = new THREE.MeshPhongMaterial({color: 0xAAAAAA, specular: 0x222222, shininess: 40,
+    this.material = new THREE.MeshPhongMaterial({color: 0x555555, specular: 0x111122, shininess: 40,
                                         side: THREE.DoubleSide, vertexColors: THREE.VertexColors} );
 
     this.mesh = new THREE.Mesh(this.geometry,this.material)
-    this.colors=[new THREE.Color(0,0.4,0.75),new THREE.Color(0,0.38,0.75)]
+    this.colors=[new THREE.Color(0,0.85,0.1),new THREE.Color(0,0.9,0.1)]
     group.add(this.mesh)
 
     this.dragObjects=[]
@@ -146,16 +148,18 @@ function VASE(group) {
         while (this.geometry.faces.length>f) { this.geometry.faces.pop();}
 
         for(var i=0;i<f;i++) {
-            while(this.geometry.faces[i].vertexColors.length<3) {this.geometry.faces[i].vertexColors.push(this.colors[0].clone())}
+            while(this.geometry.faces[i].vertexColors.length<3) {
+                this.geometry.faces[i].vertexColors.push(this.colors[i%2].clone())
+            }
         }
     }
 
     this.recolor = function() {
         if (this.showgrid){ var k=2} else {var k=1}
         for(var i=0;i<this.geometry.faces.length;i++) {
-            this.geometry.faces[i].vertexColors[0]=this.colors[i %k].clone()
-            this.geometry.faces[i].vertexColors[1]=this.colors[i %k].clone()
-            this.geometry.faces[i].vertexColors[2]=this.colors[i %k].clone()
+            this.geometry.faces[i].vertexColors[0]=this.colors[i%2].clone()
+            this.geometry.faces[i].vertexColors[1]=this.colors[i%2].clone()
+            this.geometry.faces[i].vertexColors[2]=this.colors[i%2].clone()
             this.geometry.colorsNeedUpdate =true
             this.geometry.elementsNeedUpdate=true
         }
@@ -186,7 +190,7 @@ function VASE(group) {
                 f.a=a
                 f.b=b
                 f.c=c
-               // f.vertexColors.push(this.colors[faceindex %2],  this.colors[faceindex %2],  this.colors[faceindex %2])
+                //f.vertexColors.push(this.colors[faceindex %2],  this.colors[faceindex %2],  this.colors[faceindex %2])
                 faceindex+=1
                 vertices.splice((vertexindex+1) % vertices.length,1)
                 //if (faceindex%==0) vertexindex=(vertexindex+1)% vertices.length
@@ -212,7 +216,7 @@ function VASE(group) {
                 f.a=c
                 f.b=b
                 f.c=a
-               // f.vertexColors.push(this.colors[faceindex %2],  this.colors[faceindex %2],  this.colors[faceindex %2])
+                //f.vertexColors.push(this.colors[faceindex %2],  this.colors[faceindex %2],  this.colors[faceindex %2])
                 faceindex+=1
                 vertices.splice((vertexindex+1) % vertices.length,1)
             }
@@ -250,7 +254,7 @@ function VASE(group) {
                 g.b=(layer+1)*layerdiv+((i+1) % layerdiv)
                 g.c=(layer+1)*layerdiv+(i % layerdiv)
                 //f.vertexColors.push( this.colors[0],this.colors[0],this.colors[0])
-               // g.vertexColors.push( this.colors[1],this.colors[1],this.colors[1])
+                //g.vertexColors.push( this.colors[1],this.colors[1],this.colors[1])
             }
         }
     }
@@ -276,49 +280,17 @@ function VASE(group) {
             st+=0.5
         }
         this.geometry.computeFaceNormals();
-        this.geometry.computeVertexNormals();
+        //this.geometry.colorsNeedUpdate =true
         this.geometry.verticesNeedUpdate = true;
         this.geometry.computeBoundingSphere();
-
-        var faceindex=layerdiv*this.layers*2
-        for(var i=0;i<(layerdiv-2)*2;i++) {
-            f=this.geometry.faces[faceindex+i]
-                f.vertexNormals[0].copy(f.normal)
-                f.vertexNormals[1].copy(f.normal)
-                f.vertexNormals[2].copy(f.normal)
-        }
-
-        var faceindex=layerdiv*(this.layers-1)*2
-        for(var i=0;i<layerdiv*2;i++) {
-            f=this.geometry.faces[faceindex+i]
-            if (i%2==0) {
-                f.vertexNormals[2].copy(f.vertexNormals[1])
-            } else {
-                f.vertexNormals[2].copy(f.vertexNormals[0])
-                f.vertexNormals[1].copy(this.geometry.faces[faceindex+i-1].vertexNormals[1])
-            }
-        }
-
-        var faceindex=0
-        for(var i=0;i<layerdiv*2;i++) {
-            f=this.geometry.faces[faceindex+i]
-            if (i%2==0) {
-                f.vertexNormals[1].copy(f.vertexNormals[2])
-                f.vertexNormals[0].copy(this.geometry.faces[faceindex+i+1].vertexNormals[2])
-            } else {
-                f.vertexNormals[0].copy(f.vertexNormals[2])
-            }
-
-        }
-
     }
-
-
 
     this.init = function() {
         this.resizeArrays()
         this.build()
         this.buildFlats()
+        //this.geometry.colorsNeedUpdate =true
+        this.geometry.elementsNeedUpdate=true
         this.spline.updateCurve()
         this.somethingMoved()
 
