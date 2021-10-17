@@ -122,7 +122,7 @@ function VASE(group) {
                                         side: THREE.DoubleSide, vertexColors: THREE.VertexColors} );
 
     this.mesh = new THREE.Mesh(this.geometry,this.material)
-    this.colors=[new THREE.Color(0,0.85,0.1),new THREE.Color(0,0.9,0.1)]
+    this.colors=[new THREE.Color(0.3,0.85,0.85),new THREE.Color(0.3,0.9,0.9)]
     group.add(this.mesh)
 
     this.dragObjects=[]
